@@ -1,0 +1,46 @@
+# Builds images with Baikal from the feature/birthday-calendar branch of
+# https://github.com/wnhrt/Baikal, see nginx-source.dockerfile.
+#
+# The Baikal branch is cloned on every build, so re-running this workflow
+# picks up new commits on it.
+name: Build birthday calendar images
+
+on:
+  push:
+    branches:
+      - birthday-calendar
+    paths:
+      - .github/workflows/build-birthday-calendar.yaml
+      - nginx-source.dockerfile
+      - files/**
+
+  # Allow manually triggered rebuilds
+  workflow_dispatch:
+
+concurrency:
+  group: build-birthday-calendar-images
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+# Run the automated tests first, then publish the images if the tests pass
+jobs:
+  test:
+    name: nginx-source
+    uses: ./.github/workflows/test-job.yaml
+    with:
+      dockerfile: nginx-source
+
+  nginx:
+    name: Nginx
+    needs: test
+    uses: ./.github/workflows/build-job.yaml
+    with:
+      dockerfile: nginx-source.dockerfile
+      image-version: 0.13.0-birthdays
+      tags: |
+        ghcr.io/${{ github.repository_owner }}/baikal:0.13.0-nginx-birthdays
+        ghcr.io/${{ github.repository_owner }}/baikal:birthdays
+    secrets: inherit
